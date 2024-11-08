@@ -3,11 +3,15 @@ package internal
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"github.com/agrawalpratham/Connectability/BackEnd/config"
 	"github.com/agrawalpratham/Connectability/BackEnd/database"
+	"github.com/google/uuid"
 )
 
 // RegisterUser function stores the details of new user in database
@@ -64,8 +68,8 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to save session: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
-	}else {
-    log.Println("Session saved successfully")
+	} else {
+		log.Println("Session saved successfully")
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -109,7 +113,7 @@ func UserProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Println(session.Values)
 	userEmail, ok := session.Values["userEmail"].(string)
-	if( !ok){
+	if !ok {
 		log.Println("user id is missing")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("user id is missing"))
@@ -250,13 +254,13 @@ func TeamMembers(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonProject_team)
 }
 
-//EligibleMembersForProject to return the details of users having required skills for the project
-func EligibleMembersForProject(w http.ResponseWriter, r *http.Request){
-	
+// EligibleMembersForProject to return the details of users having required skills for the project
+func EligibleMembersForProject(w http.ResponseWriter, r *http.Request) {
+
 	var requestBody database.RequestBody2
 
 	err := json.NewDecoder(r.Body).Decode(&requestBody)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error unmarshalling the skills needed to filter users for project : ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("rror unmarshalling the skills needed to filter users for project"))
@@ -264,19 +268,19 @@ func EligibleMembersForProject(w http.ResponseWriter, r *http.Request){
 	}
 
 	Users_detail, err := database.EligibleMembersForProjectDatabase(config.App.DBConnection.SQL, requestBody)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error extracting details of members with required skill for project id : ", requestBody.Project_id, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error extracting details of members with required skill for project"))
-		return 
+		return
 	}
 
 	jsonUsers_detail, err := json.Marshal(Users_detail)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error marshalling the details of Users with required skill")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error marshalling the details of Users with required skill"))
-		return 
+		return
 	}
 
 	fmt.Println("DONE")
@@ -285,14 +289,14 @@ func EligibleMembersForProject(w http.ResponseWriter, r *http.Request){
 	w.Write(jsonUsers_detail)
 }
 
-//InviteUserForProject to insert the invitation request record in database
-func InviteUserForProject(w http.ResponseWriter, r *http.Request){
+// InviteUserForProject to insert the invitation request record in database
+func InviteUserForProject(w http.ResponseWriter, r *http.Request) {
 
 	var requestBody3 database.RequestBody3
 
-	//Unmarshalling the project id and receiever email of the invitation 
+	//Unmarshalling the project id and receiever email of the invitation
 	err := json.NewDecoder(r.Body).Decode(&requestBody3)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error unmarshalling the project id and receiver email of invitation : ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Error unmarshalling the project id and receiver email of invitation"))
@@ -301,7 +305,7 @@ func InviteUserForProject(w http.ResponseWriter, r *http.Request){
 
 	//Inserting the invitation record in database
 	err = database.InviteUserForProjectDatabase(config.App.DBConnection.SQL, requestBody3)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error calling the database function to insert the invitation request record : ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error calling the database function to insert the invitation request record"))
@@ -313,24 +317,24 @@ func InviteUserForProject(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("Invitation request record successfully inserted in database"))
 }
 
-//UserInvitations to send the details of user invitation projects 
-func UserInvitations(w http.ResponseWriter, r *http.Request){
+// UserInvitations to send the details of user invitation projects
+func UserInvitations(w http.ResponseWriter, r *http.Request) {
 
 	session, _ := config.App.Session.Get(r, "Connectability")
 	userEmail := session.Values["userEmail"].(string)
 
 	//Extracting details of user invitations
 	userInvitationDetail, err := database.UserInvitationsDatabase(config.App.DBConnection.SQL, userEmail)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error calling database func to extract details of invitations received by user : ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error calling database func to extract details of invitations received by user"))
 		return
 	}
 
-	//Marshalling details of user invitations 
+	//Marshalling details of user invitations
 	jsonUserInvitationDetail, err := json.Marshal(userInvitationDetail)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error marshalling the user invitation details into json format : ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error marshalling the user invitation details into json format"))
@@ -342,10 +346,10 @@ func UserInvitations(w http.ResponseWriter, r *http.Request){
 	w.Write(jsonUserInvitationDetail)
 }
 
-func AcceptInvite(w http.ResponseWriter, r *http.Request){
+func AcceptInvite(w http.ResponseWriter, r *http.Request) {
 	var requestBody3 database.RequestBody3
 	err := json.NewDecoder(r.Body).Decode(&requestBody3)
-	if err != nil{
+	if err != nil {
 		fmt.Println("Error unmarshalling the project id and receiver email of the accepted request : ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Error unmarshalling the project id and receiver email of the accepted request"))
@@ -357,7 +361,7 @@ func AcceptInvite(w http.ResponseWriter, r *http.Request){
 	requestBody3.Receiver_email = userEmail
 
 	err = database.AcceptInviteDatabase(config.App.DBConnection.SQL, requestBody3)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error calling database func to update recordes for accepted request : ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error calling database func to update recordes for accepted request"))
@@ -369,10 +373,10 @@ func AcceptInvite(w http.ResponseWriter, r *http.Request){
 	w.Write([]byte("Request successfully accepted"))
 }
 
-func RejectInvite(w http.ResponseWriter, r *http.Request){
+func RejectInvite(w http.ResponseWriter, r *http.Request) {
 	var requestBody3 database.RequestBody3
 	err := json.NewDecoder(r.Body).Decode(&requestBody3)
-	if err != nil{
+	if err != nil {
 		fmt.Println("Error unmarshalling the project id and receiver email of the rejected request : ", err)
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("Error unmarshalling the project id and receiver email of the rejected request"))
@@ -382,7 +386,7 @@ func RejectInvite(w http.ResponseWriter, r *http.Request){
 	requestBody3.Receiver_email = session.Values["userEmail"].(string)
 
 	err = database.RejectInviteDatabase(config.App.DBConnection.SQL, requestBody3)
-	if err!= nil{
+	if err != nil {
 		fmt.Println("Error calling database func to update recordes for rejected request : ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Error calling database func to update recordes for rejected request"))
@@ -392,4 +396,60 @@ func RejectInvite(w http.ResponseWriter, r *http.Request){
 	fmt.Printf("Request successfully rejected for project id : %d by user emai : %s \n", requestBody3.Project_id, requestBody3.Receiver_email)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Request successfully rejected"))
+}
+
+func ChangeProfilePic(w http.ResponseWriter, r *http.Request) {
+	file, _, err := r.FormFile("image")
+	session, _ := config.App.Session.Get(r, "Connectability")
+	email := session.Values["userEmail"].(string)
+
+	if err != nil {
+		fmt.Println(err.Error())
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		fmt.Println(err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	filetype := http.DetectContentType(data)
+	fmt.Println(filetype)
+	if filetype != "image/jpg" && filetype != "image/png" && filetype != "image/jpeg" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("expected jpg or png"))
+		return
+	}
+
+	id := uuid.New().String()
+	filepath := fmt.Sprintf("img/%v.%v", id, strings.Split(filetype, "/")[1])
+
+	dst, err := os.Create(filepath)
+	defer dst.Close()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if _, err := dst.Write(data); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	if err := database.UpdateUserProfilePicture(config.App.DBConnection.SQL, fmt.Sprintf("http://localhost:8080/%v", filepath), email); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("profile picture updated"))
 }

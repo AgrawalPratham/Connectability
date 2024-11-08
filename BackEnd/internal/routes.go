@@ -29,6 +29,7 @@ func Routes() http.Handler {
 	//For PROFILE Page
 	mux.Get("/userProfile", UserProfile) //to send user details to frontent for profile page
 	// mux.Post("/updateUserProfile", UpdateUserProfile) 	//to update the user profile details
+	mux.Post("/updateUserPic", ChangeProfilePic)
 
 	//For CREATE PROJECT Page
 	mux.Post("/createProject", CreateProject)
