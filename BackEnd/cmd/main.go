@@ -34,7 +34,9 @@ func main() {
 	//Setting the session configuration
 	session := sessions.NewCookieStore([]byte("6tGbPGST2hUprIHea5xzyTmXAdw7xpfI"))
 	session.Options.HttpOnly = true
+	session.Options.Secure = false
 	session.Options.SameSite = http.SameSiteLaxMode
+	session.Options.MaxAge = 3600 * 24 * 30
 	config.App.Session = session
 
 	//Starting the server

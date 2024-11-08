@@ -17,9 +17,14 @@ func RegisterUserDatabase(conn *sql.DB, user *UserDetails) error {
 		fmt.Println("Error hashing the passowrd : ", err)
 		return err
 	}
+
+	if user.Image == "" {
+		user.Image = ""
+	}
+	
 	//Inserting user data into database
-	query := `Insert into user_details(name, email, password, phone, city, state, country, about, github_id, linkedin_id, resume, experience) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
-	_, err = conn.Exec(query, user.Name, user.Email, passwordHash, user.Phone, user.City, user.State, user.Country, user.About, user.Github_id, user.Linkedin_id, user.Resume, user.Experience)
+	query := `Insert into user_details(name, email, password, phone, city, state, country, about, github_id, linkedin_id, resume, experience, image) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+	_, err = conn.Exec(query, user.Name, user.Email, passwordHash, user.Phone, user.City, user.State, user.Country, user.About, user.Github_id, user.Linkedin_id, user.Resume, user.Experience, user.Image)
 	if err != nil {
 		fmt.Println("Error inserting the user registration details into database : ", err)
 		return err
@@ -79,6 +84,7 @@ func UserProfileDatabase(conn *sql.DB, userEmail string) (*UserDetails, error) {
 		&userDetail.Linkedin_id,
 		&userDetail.Resume,
 		&userDetail.Experience,
+		&userDetail.Image,
 	)
 	if err != nil {
 		fmt.Println("Error extracting user_details : ", err)
@@ -198,6 +204,7 @@ func AllUserProjectsDatabase(conn *sql.DB, userEmail string) (*[]ProjectDetails,
 			fmt.Println("Error fetching project details for project ID:", Project_id, err)
 			return nil, err
 		}
+		Project.Project_id = Project_id
 		Projects = append(Projects, *Project)
 	}
 
@@ -271,6 +278,22 @@ func AllUserProjectsDatabase(conn *sql.DB, userEmail string) (*[]ProjectDetails,
 			return nil, err
 		}
 
+		parsedTime, err := time.Parse(time.RFC3339, project.Start_date)
+		if err != nil {
+			fmt.Println("Error parsing start date :", err)
+			return nil, err
+		}
+		formattedStartDate := parsedTime.Format("2006-01-02")
+		project.Start_date = formattedStartDate
+
+		parsedTime, err = time.Parse(time.RFC3339, project.End_date)
+		if err != nil {
+			fmt.Println("Error parsing start date :", err)
+			return nil, err
+		}
+		formattedEndDate := parsedTime.Format("2006-01-02")
+		project.End_date = formattedEndDate
+
 		//Extracting project skills from project_skills table
 		var skills []string
 		query = `Select skill from project_skills where project_id = $1`
@@ -316,25 +339,38 @@ func AllUserProjectsDatabase(conn *sql.DB, userEmail string) (*[]ProjectDetails,
 
 
 // TeamMembersDatabase return array of names of team members
-func TeamMembersDatabase(conn *sql.DB, Project_id int) (*[]string, error) {
-	query := `Select u.name from team_table t JOIN user_details u ON t.member_email = u.email where t.project_id = $1`
+func TeamMembersDatabase(conn *sql.DB, Project_id int) (*[]MemberNameImage, error) {
+	query := `Select u.name, u.image from team_table t JOIN user_details u ON t.member_email = u.email where t.project_id = $1`
 	rows, err := conn.Query(query, Project_id)
 	if err != nil {
 		fmt.Println("Error extracting the team members name for project id : ", Project_id, err)
 		return nil, err
 	}
 
-	var MembersName []string
+	var MembersData []MemberNameImage
 	for rows.Next() {
-		var MemberName string
-		err := rows.Scan(&MemberName)
+		var MemberData MemberNameImage
+		err := rows.Scan(&MemberData.Member_name, &MemberData.Member_image)
 		if err != nil {
 			fmt.Println("Error parsing the names of team members for project Id : ", Project_id, err)
 			return nil, err
 		}
-		MembersName = append(MembersName, MemberName)
+		MembersData = append(MembersData, MemberData)
 	}
-	return &MembersName, nil
+	return &MembersData, nil
+}
+
+func TeamHeadDatabase(conn *sql.DB, Project_id int)(*MemberNameImage, error){
+	query := `Select name, image from user_details where email = ( Select manager_email from project_details where project_id = $1 )`
+	row := conn.QueryRow(query, Project_id)
+
+	var ProjectHeadData MemberNameImage
+	err := row.Scan( &ProjectHeadData.Member_name, &ProjectHeadData.Member_image)
+	if err!= nil{
+		fmt.Println("Error extracting the project head data for project id : ", Project_id, err)
+		return nil, err
+	}
+	return &ProjectHeadData, nil
 }
 
 //EligibleMembersForProjectDatabase return details of all the users having the required skills for the project
@@ -422,8 +458,8 @@ func UserInvitationsDatabase(conn *sql.DB, userEmail string) (*UserInvitationsDe
 	var userInvitationDetail UserInvitationsDetail
 	userInvitationDetail.User_email = userEmail
 
-	row := conn.QueryRow("Select name from user_details where email = $1", userEmail)
-	err := row.Scan(&userInvitationDetail.User_name)
+	row := conn.QueryRow("Select name, image from user_details where email = $1", userEmail)
+	err := row.Scan(&userInvitationDetail.User_name, &userInvitationDetail.User_image)
 	if err != nil{
 		fmt.Println("Error extracting the invitation details for the user : ", err)
 		return nil,err

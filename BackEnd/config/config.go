@@ -9,7 +9,7 @@ type Application struct {
 	PortNumber   string
 	DBConnection *database.DB
 	Session *sessions.CookieStore
-	UserEmail string
+	// UserEmail string
 }
 
 var App = &Application{}

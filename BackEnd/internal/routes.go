@@ -14,11 +14,11 @@ func Routes() http.Handler {
 	corsOptions := cors.New(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token", "*"},
 		AllowCredentials: true,
 	})
 	mux.Use(corsOptions.Handler)
-	mux.Use(authenticateMiddleware)
+	// mux.Use(authenticateMiddleware)
 
 	//For LOGIN/SIGNUP Pages
 	mux.Post("/registerUser", RegisterUser)
@@ -39,10 +39,13 @@ func Routes() http.Handler {
 	mux.Post("/teamMembers", TeamMembers)
 	mux.Post("/eligibleMembersForProject", EligibleMembersForProject)
 	mux.Post("/inviteUserForProject", InviteUserForProject)
-	mux.Get("/userInvitations", UserInvitations)
 
+	mux.Get("/userInvitations", UserInvitations)
 	mux.Post("/acceptInvite", AcceptInvite)
-	mux.Post("/rejectInvite", RejectInvite)
+	mux.Post("/rejectInvite+", RejectInvite)
+
+	fs := http.FileServer(http.Dir("img"))
+	mux.Handle("/img/*", http.StripPrefix("/img/", fs))
 
 	return mux
 }
